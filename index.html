@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>AMM Reference</title>
+    <link rel="icon" href="https://ifeamm.staticdomains.app/AMM/123.png">
+    <link rel="apple-touch-icon" href="https://ifeamm.staticdomains.app/AMM/123.png">
+    
+    <link rel="manifest" href='data:application/json,{"name":"AMM Reference","short_name":"AMM","start_url":"./","display":"standalone","background_color":"#0f172a","theme_color":"#0f172a","icons":[{"src":"https://ifeamm.staticdomains.app/AMM/123.png","sizes":"192x192","type":"image/png"}]}'>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AMM Reference">
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 10px; overflow-x: hidden; }
+        body::before { content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: -1; }
+        #searchContainer { position: sticky; top: 0; display: flex; align-items: center; gap: 10px; padding: 10px 0; z-index: 100; background: rgba(15, 23, 42, 0.95); }
+        #homeIcon { cursor: pointer; font-size: 28px; color: #ffffff; }
+        #searchInput { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #334155; background: #020617; color: white; }
+        .container { max-width: 100%; margin: auto; }
+        .table-wrapper { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; background: rgba(30, 41, 59, 0.5); font-size: 0.85rem; border-radius: 12px; }
+        th { background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 10px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #334155; }
+        .card { background: rgba(30, 41, 59, 0.7); padding: 15px; margin: 10px 0; border-radius: 12px; border-left: 4px solid #38bdf8; cursor: pointer; }
+        .add-icon-btn { background: #8b5cf6; width: 50px; height: 50px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; margin: 15px auto; cursor: pointer; color: white; }
+        .hidden-form { display: none; margin-top: 15px; }
+        input { width: 100%; padding: 10px; margin: 5px 0; border-radius: 8px; border: 1px solid #334155; background: #020617; color: white; box-sizing: border-box; }
+        .save-btn { background: #22c55e; border: none; color: white; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="searchContainer">
+    <span id="homeIcon" onclick="location.reload()">🏠</span>
+    <input type="text" id="searchInput" placeholder="Search Reference..." onkeyup="globalSearch()">
+</div>
+
+<div class="container">
+    <div id="home-page">
+        <h1 style="color: #38bdf8; text-align: center;">AMM Reference</h1>
+        <div id="main-content">Loading...</div>
+    </div>
+
+    <div id="details-page" style="display:none;">
+        <h2 id="section-title" style="color: white; text-align: center; font-size: 1.2rem;"></h2>
+        <div class="add-icon-btn" onclick="secureAction('add')">+</div>
+        <div id="add-form" class="hidden-form">
+            <input type="text" id="name" placeholder="Name">
+            <input type="text" id="amm1" placeholder="AMM 1">
+            <input type="text" id="amm2" placeholder="AMM 2">
+            <input type="text" id="pn" placeholder="P/N">
+            <button class="save-btn" onclick="saveData()">Save</button>
+        </div>
+        <div class="table-wrapper"><div id="section-content"></div></div>
+    </div>
+</div>
+
+<script>
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('data:text/javascript,self.addEventListener("fetch",e=>{});'); }
+    
+    // وضع التبديل: 11 = حماية، 22 = تحرير بدون كلمة سر
+    const APP_MODE = 11; 
+    
+    const firebaseConfig = { apiKey: "AIzaSyC0bTyhM2Mqq_bMUwVvMEEcv-SPdsaguIk", databaseURL: "https://amm-reference-c6eaf-default-rtdb.firebaseio.com", projectId: "amm-reference-c6eaf" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const HASHED_PASS = "ba9e05b638573414ba2a43591030c13710d3199ffc5bf0c2a22023163813cbf7";
+
+    async function checkAccess() {
+        if (APP_MODE === 22) return true;
+        const input = prompt("Enter Password:");
+        if (!input) return false;
+        const msgUint8 = new TextEncoder().encode(input);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex === HASHED_PASS;
+    }
+
+    async function secureAction(type, id, n, a1, a2, p) {
+        if (!(await checkAccess())) { alert("Access Denied!"); return; }
+        if (type === 'add') { editId = null; document.querySelectorAll('input').forEach(i => i.value = ''); document.getElementById('add-form').style.display = 'block'; }
+        else if (type === 'edit') { editId = id; document.getElementById('name').value = n; document.getElementById('amm1').value = a1; document.getElementById('amm2').value = a2; document.getElementById('pn').value = p; document.getElementById('add-form').style.display = 'block'; }
+        else if (type === 'delete') { if(confirm("Are you sure?")) db.ref(`data/${currentSection}/references/${id}`).remove(); }
+    }
+
+    let allData = {}, editId = null, currentSection = "";
+
+    db.ref('data/').on('value', (s) => { allData = s.val() || {}; renderList(allData); });
+
+    function renderList(data) {
+        const cont = document.getElementById('main-content'); cont.innerHTML = '';
+        if (!data) return;
+        Object.keys(data).forEach(key => {
+            const refs = data[key].references ? Object.keys(data[key].references).length : 0;
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `<strong>${key}</strong><br><span style="font-size: 0.8rem; color: #94a3b8;">${refs} references</span>`;
+            div.onclick = () => openSection(key);
+            cont.appendChild(div);
+        });
+    }
+
+    function openSection(name) {
+        currentSection = name;
+        document.getElementById('home-page').style.display = 'none';
+        document.getElementById('details-page').style.display = 'block';
+        document.getElementById('section-title').innerText = name;
+        db.ref('data/' + name + '/references').on('value', (s) => {
+            const refs = s.val();
+            let html = `<table><thead><tr><th>Name</th><th>AMM1</th><th>AMM2</th><th>P/N</th><th>Act</th></tr></thead><tbody>`;
+            if(refs) Object.entries(refs).forEach(([id, r]) => {
+                html += `<tr><td>${r.name}</td><td>${r.amm1}</td><td>${r.amm2}</td><td>${r.pn}</td>
+                <td><button onclick="secureAction('edit','${id}','${r.name}','${r.amm1}','${r.amm2}','${r.pn}')">✏️</button>
+                <button onclick="secureAction('delete','${id}')">🗑️</button></td></tr>`;
+            });
+            document.getElementById('section-content').innerHTML = html + `</tbody></table>`;
+        });
+    }
+
+    function saveData() {
+        const data = { name: document.getElementById('name').value, amm1: document.getElementById('amm1').value, amm2: document.getElementById('amm2').value, pn: document.getElementById('pn').value };
+        if (editId) db.ref(`data/${currentSection}/references/${editId}`).update(data); 
+        else db.ref(`data/${currentSection}/references`).push(data);
+        document.getElementById('add-form').style.display = 'none';
+    }
+
+    function globalSearch() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        if (!q) { renderList(allData); return; }
+        document.getElementById('details-page').style.display = 'none';
+        document.getElementById('home-page').style.display = 'block';
+        const cont = document.getElementById('main-content'); cont.innerHTML = '<h3>Results:</h3>';
+        Object.keys(allData).forEach(plane => {
+            Object.entries(allData[plane].references || {}).forEach(([id, i]) => {
+                if (i.name.toLowerCase().includes(q) || i.pn.toLowerCase().includes(q)) {
+                    const div = document.createElement('div');
+                    div.className = 'card';
+                    div.innerHTML = `<strong>${plane} - ${i.name}</strong><br><small>P/N: ${i.pn}</small>`;
+                    div.onclick = () => openSection(plane);
+                    cont.appendChild(div);
+                }
+            });
+        });
+    }
+</script>
+
+<script src="https://static.app/js/static.js" type="text/javascript"></script>
+</body>
+</html>
