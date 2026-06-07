@@ -141,12 +141,22 @@
         document.getElementById('details-page').style.display = 'none';
         document.getElementById('home-page').style.display = 'block';
         const cont = document.getElementById('main-content'); cont.innerHTML = '<h3>Results:</h3>';
+        
         Object.keys(allData).forEach(plane => {
-            Object.entries(allData[plane].references || {}).forEach(([id, i]) => {
-                if (i.name.toLowerCase().includes(q) || i.pn.toLowerCase().includes(q)) {
+            const refs = allData[plane].references || {};
+            Object.entries(refs).forEach(([id, i]) => {
+                // البحث الآن يشمل: الاسم، AMM1، AMM2، و P/N
+                if (
+                    i.name.toLowerCase().includes(q) || 
+                    i.amm1.toLowerCase().includes(q) || 
+                    i.amm2.toLowerCase().includes(q) || 
+                    i.pn.toLowerCase().includes(q)
+                ) {
                     const div = document.createElement('div');
                     div.className = 'card';
-                    div.innerHTML = `<strong>${plane} - ${i.name}</strong><br><small>P/N: ${i.pn}</small>`;
+                    div.innerHTML = `<strong>${plane} - ${i.name}</strong><br>
+                                     <small>AMM1: ${i.amm1} | AMM2: ${i.amm2}</small><br>
+                                     <small>P/N: ${i.pn}</small>`;
                     div.onclick = () => openSection(plane);
                     cont.appendChild(div);
                 }
